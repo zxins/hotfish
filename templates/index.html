@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <!-- 最新版本的 Bootstrap 核心 CSS 文件 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- 可选的 Bootstrap 主题文件（一般不用引入） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css"
+          integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js"
+            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+            crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="container">
+
+<ul class="nav nav-tabs">
+    {% for result in results %}
+    {% if result == results[0] %}
+    <li class="active">
+        {% else %}
+    <li>
+        {% endif %}
+        <a href="#{{ result.data_type}}" data-toggle="tab">{{ result.name }}</a>
+    </li>
+    {% endfor %}
+</ul>
+
+<div class="tab-content">
+    {% for result in results%}
+        {% if result == results[0] %}
+        <div class="tab-pane active" id="{{ result.data_type }}">
+        {% else %}
+        <div class="tab-pane" id="{{ result.data_type }}">
+        {% endif %}
+
+            <div class="list-group">
+                {% for row in result.data %}
+                <a style="color: #337ab7" class="list-group-item" href="{{ row.url }}">{{ row.title }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+</div>
+</body>
+<script type="text/javascript" src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdn.bootcss.com/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</html>
