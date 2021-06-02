@@ -10,7 +10,7 @@ app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
 
 # 缓存
-cache = Cache(app,  config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 60 * 60})
+cache = Cache(app,  config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 10})
 
 @app.route('/')
 @cache.cached()

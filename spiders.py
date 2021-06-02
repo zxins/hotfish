@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from functools import wraps
@@ -10,16 +9,18 @@ import requests
 from lxml import etree
 from fake_useragent import UserAgent
 
+from config import MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, MYSQL_CHARSET
+
 UA = UserAgent(path='user_agents.json')
 
 lock = Lock()
 
 mysql_conn = pymysql.connect(
-    host="127.0.0.1",
-    user='root',
-    password=os.environ.get('DB_PASSWORD'),
-    database='mine',
-    charset='utf8'
+    host=MYSQL_HOST,
+    user=MYSQL_USER,
+    password=MYSQL_PASSWORD,
+    database=MYSQL_DB,
+    charset=MYSQL_CHARSET
 )
 cursor = mysql_conn.cursor()
 
@@ -44,13 +45,14 @@ def request(url, **kwargs):
     kwargs.setdefault('headers', {})
     kwargs['headers'].setdefault('User-Agent', UA.random)
     r = requests.get(url, **kwargs)
+    r.encoding = r.apparent_encoding
     return r
 
-
+@logging
 def save(**kwargs):
     """ 保存数据 """
 
-    # 如果实在多线程中执行要加锁
+    # 多线程中执行要加锁
     # with lock:
 
     sql = "insert into hotrows (`data`, `data_type`, `name`) values (%s, %s, %s)"
@@ -60,7 +62,7 @@ def save(**kwargs):
 
 @logging
 def get_v2ex():
-    """ V2EX """
+    """ V2EX, 建议科(fang-)学(-zhi)上(he-)网(-xie) """
 
     data_type = 'V2EX'
     name = 'V2EX'
@@ -68,7 +70,6 @@ def get_v2ex():
     host = 'https://www.v2ex.com'
 
     r = request(url, timeout=30)
-    r.encoding = r.apparent_encoding
     html = etree.HTML(r.text)
     hot_list = html.xpath('//a[@class="topic-link"]')
 
@@ -90,9 +91,8 @@ def get_ithome():
     url = 'https://www.ithome.com/'
 
     r = request(url)
-    r.encoding = r.apparent_encoding
     html = etree.HTML(r.text)
-    hot_list = html.xpath('//div[@class="lst lst-2 hot-list"]/div/ul/li/a')
+    hot_list = html.xpath('//div[@id="rank"]/ul[2]/li/a')
 
     all_data = []
     for hot in hot_list:
@@ -110,13 +110,26 @@ def get_zhihu():
     data_type = 'zhihu'
     name = '知乎'
     url = 'https://www.zhihu.com/hot'
+    # TODO: 替换cookie
     headers = {
-        'Cookie': '_zap=ecd79f14-bebf-44d1-a349-a5a406800fb8; _xsrf=39631860-4fe1-49f1-b760-4defb5f27b39; d_c0="AOAV1_S_6xCPTnyxu1rB-VdaAxRkflX8aEI=|1583478810"; _ga=GA1.2.127198227.1583478813; tst=h; tshl=; q_c1=4af85883e3214a879d516bf26b6ca5c9|1583808432000|1583808432000; __utma=51854390.127198227.1583478813.1584275862.1584275862.1; __utmc=51854390; __utmz=51854390.1584275862.1.1.utmcsr=baidu|utmccn=(organic)|utmcmd=organic; __utmv=51854390.100-1|2=registration_date=20141205=1^3=entry_date=20141205=1; _gid=GA1.2.2073946947.1584953899; Hm_lvt_98beee57fd2ef70ccdd5ca52b9740c49=1584961058,1585020440,1585022753,1585031696; capsion_ticket="2|1:0|10:1585032595|14:capsion_ticket|44:YjQ2ZDUxY2Y5NDQ0NGZiOGJkMTc5ZmI5NmQ5NjQyYWI=|7d0c0042e83d5b8541db49f36b050dbc4029587a677b8c51ec40a2b70a4475e5"; z_c0="2|1:0|10:1585032601|4:z_c0|92:Mi4xOFNhckFBQUFBQUFBNEJYWDlMX3JFQ1lBQUFCZ0FsVk5tZnRtWHdEQXpySExPMnhWSmhMcWlXNkYwU1I3Wm5oUE9n|6eda3fa2500791876b2b923f124058f2e13eb78870d77177bcf8c46ce2f97b89"; Hm_lpvt_98beee57fd2ef70ccdd5ca52b9740c49=1585032602; KLBRSID=b33d76655747159914ef8c32323d16fd|1585032604|1585030527',
+        'Cookie': '_zap=eb29924e-6553-4d1f-aae8-32628af6fcee; d_c0="ADBXn2kGORKPTkDkd2pvbd8IOsl9ot7m0nc=|1605844531"; '
+                  '_xsrf=O536U7UC8ljni3Ce79StdsNWd4iNhOmS; '
+                  'q_c1=a4a8e4b0205d4f8ea5e6679416fbf468|1617084852000|1605921020000; tshl=; tst=h; '
+                  'captcha_session_v2="2|1:0|10:1621473480|18:captcha_session_v2|88'
+                  ':TFcrTUd3cTN4YWNQQW5OVXRDYVlvb1hhMi9wVE1xSmhpeTF3ZzZibW5LSXhpUDdKejBjM1gxQ3A2c2FzUXpzMQ'
+                  '==|a3156f767e21a50c5c094866c45596827b55393073e10187ac95f047ef634063"; '
+                  '__snaker__id=i5ZcNxoSKUZVkB1b; _9755xjdesxxd_=32; '
+                  'gdxidpyhxdE=LSuroE7Wve%2FbeyNZsKBfAJmRSs%5CzW5sHy2Wfu%2FGxa5qwau6XaqzEhhxgjV'
+                  '%2BP21AICgptCnBBlZYxymdnP%2B%2BHcddvJ8gUj8mA0ca0iYGNDnmcWoJLoMLQEIkix6w'
+                  '%2BcV6hgAqspby8Cvpo33YV4t9Ucm%2Fp9QCqER3LmZMzkgbru2qrtI%2FM%3A1621474383863; '
+                  'YD00517437729195%3AWM_NI=424NjEPUsUyEC3xNq9%2BalmFY1JddXWDcFH5AFTPMe%2B%2BUGiuDVEbIwyPtCY4Is758o'
+                  '%2FaSzWAZNHKIPm3950xvMp%2Fyu76b3V%2FgMPCrDH5JvKaAeR2HbgP9C6U2%2Fg8WZs7QOVY%3D; '
+                  'YD00517437729195%3AWM_NIKE'
+                  '=9ca17ae2e6ffcda170e2e6ee88ec4898b0999bf268a6e78eb2d44b969e9fbbae61ad8fbfabf76ff1b9ac98b82af0fea7c3b92af8eefcafe94f948bbdb6fc4f81edb8aff433e9bfa48ec553f396ac85db5d88bd8aa9b84b868ca0aee821e98b898af850969baeaaf67394ac8dbab743b1e9fbd9ee25a38db6b8c4528e9885aad367f1e7fbd1fb7e8fb0e19af83df6befdb7ae6d8f908d93c744f796baace44ba78efea9e16d94e78dd7d83aedb9f8b8d979f58f81b7dc37e2a3; YD00517437729195%3AWM_TID=mMyatKM1pudBRUARFQdvhoV7d4P3gZwo; captcha_ticket_v2="2|1:0|10:1621473488|17:captcha_ticket_v2|704:eyJ2YWxpZGF0ZSI6IkNOMzFfYVYxMHVGSWEyekw0ODJSa0l5TklCVGNIa2VyZERqWEJRVTVpMWhXb0k4X3JvdE1GbWdEcXk5ZmNPZEo3TmxCR0NzNlVhbERpLUpoOU1qejZDLlFFUGFDZFZhRmR3bVM2ZnVnLXByNTFMSWlyVi5fcXFqTnVPeWY5dlI0Q0prcjZ5Qi5GVjBYcmhyNmZQMkNmU2ZXSXd1OGRyaXlXaWktMm9JbWZDVHBTWnk5VVhiMHJPemJsdkZ6bS13SmVmazkxY2hYNGVyYzlSWnh2eHcuVFdtQVZWX0ZYajA5RjdaWWZnMUx3dDJOTC1aRzYucmhuTkRlQm1iUFp6TFBySk1qbk4yMFpKR1U5anVfdlBSSl94ZGVfSG91R01pMnlLNVJfVDZWSkhBWUR3c3pkMnV1VWxZeGpTNlZkSzg2aW5mcmhiNUtXaWdXY0ROLXV6QXNhQ2NoeXc0aTdwUVJXNDlIVFhPV3RUZm1ibzBCWlJrYnNEMUI3T2NGN0tpRWZWSTBDem9OcGZjcDVtRU5hV2ZwOG1LWEsxV0lIQ2VSNXp2TFdpZ2g1X0NZNVRsRjZLb2oyekNERGEucF9SeXlQbWVOcUV4TlZxTklfU0FpVGZDQ0J4bC1vTXpYQVdnVjlrLk1WQWVweGU5cEZ6RnQwTE1Ic3BVSVhkSkpzTS5tMyJ9|68904ab424b68957d59c3f3e0a38a99ca21efb44ba40d1ba9f702e75751040ff"; z_c0="2|1:0|10:1621473488|4:z_c0|92:Mi4xOFNhckFBQUFBQUFBTUZlZmFRWTVFaVlBQUFCZ0FsVk4wQWFUWVFCU0xwQkFyQ280VjVmNS1nXzh1MXpVQWh5ZUNR|e8963a4dfeb63a0be98ce477939218cd6fd3334fa29e3ca0995d11599418d76f"; Hm_lvt_98beee57fd2ef70ccdd5ca52b9740c49=1622512422,1622534695,1622535858,1622600714; Hm_lpvt_98beee57fd2ef70ccdd5ca52b9740c49=1622600714; SESSIONID=FQeYPAPXDT9rMOoX7RRYf7d1fqJzXhjTjopL9adFwKz; KLBRSID=5430ad6ccb1a51f38ac194049bce5dfe|1622600715|1622600688; JOID=V1gTBUMFqt4nmoFncAbSzXbnhFZhRv27cMfFMShM--FV2cMNLg1AZkSSgmF-QgmErkI-hnmyhrSs9Qt4R3tQdHY=; osd=VFwXBk4Grtokl4JjdAXfznLjh1tiQvm4fcTBNStB-OVR2s4OKglDa0eWhmJzQQ2ArU89gn2xi7eo8Qh1RH9Ud3s=',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'
     }
 
     r = request(url, headers=headers)
-    r.encoding = r.apparent_encoding
     html = etree.HTML(r.text)
     hot_list = html.xpath('//div[@class="HotItem-content"]/a')
 
@@ -177,8 +190,9 @@ def get_douban():
     name = '豆瓣'
     data_type = 'douban'
     url = 'https://www.douban.com/group/explore'
-
-    html = etree.HTML(request(url).text)
+    r = request(url)
+    r.encoding = 'utf-8'
+    html = etree.HTML(r.text)
     hot_list = html.xpath('//div[@class="bd"]/h3/a')
 
     all_data = []
@@ -232,14 +246,13 @@ def get_hupu():
 
 @logging
 def get_github():
-    """ GitHub """
+    """ GitHub, 网络问题可能会超时, 建议科(fang-)学(-zhi)上(he-)网(-xie) """
 
     name = 'GitHub'
     data_type = 'github'
     url = 'https://github.com/trending'
 
     r = request(url)
-    r.encoding = 'utf-8'
     html = etree.HTML(r.text)
     hot_list = html.xpath('//h1[@class="h3 lh-condensed"]/a')
 
@@ -262,8 +275,7 @@ def get_baidu():
     data_type = 'baidu'
     url = 'http://top.baidu.com/buzz?b=341&c=513&fr=topbuzz_b1'
 
-    r = requests.get(url)
-    r.encoding = r.apparent_encoding
+    r = request(url)
     html = etree.HTML(r.text)
     hot_list = html.xpath('//td[@class="keyword"]/a[1]')
 
@@ -305,10 +317,10 @@ def main():
 
         # 线程池
         with ThreadPoolExecutor(min(len(all_func), 10)) as executor:
-            # 执行任务 V2EX访问好慢...
+            # 线程池执行任务
             all_task = [executor.submit(func) for func in all_func]
 
-            # 每个任务完成之后保存一下结果
+            # 同步保存结果
             for future in as_completed(all_task):
                 result = future.result()
                 if result:
@@ -326,3 +338,4 @@ def main():
 if __name__ == '__main__':
     # 定时执行
     main()
+    # print(get_douban())
